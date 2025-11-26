@@ -14,6 +14,14 @@ export async function sendEmail({ to, subject, html, text }: SendEmailOptions) {
 	// If Resend is configured, use it
 	if (process.env.RESEND_API_KEY) {
 		try {
+			const emailFrom = process.env.EMAIL_FROM || "onboarding@resend.dev";
+			console.log("📧 Sending email via Resend:", {
+				to,
+				from: emailFrom,
+				subject,
+				hasApiKey: !!process.env.RESEND_API_KEY,
+			});
+
 			const response = await fetch("https://api.resend.com/emails", {
 				method: "POST",
 				headers: {
@@ -21,7 +29,7 @@ export async function sendEmail({ to, subject, html, text }: SendEmailOptions) {
 					Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
 				},
 				body: JSON.stringify({
-					from: process.env.EMAIL_FROM || "noreply@amisag.com",
+					from: emailFrom,
 					to: [to],
 					subject,
 					html,
@@ -29,30 +37,45 @@ export async function sendEmail({ to, subject, html, text }: SendEmailOptions) {
 				}),
 			});
 
+			const responseData = await response.json().catch(() => ({}));
+
 			if (!response.ok) {
-				const error = await response.json();
-				console.error("Resend API error:", error);
-				throw new Error(`Failed to send email: ${error.message || "Unknown error"}`);
+				console.error("❌ Resend API error:", {
+					status: response.status,
+					statusText: response.statusText,
+					error: responseData,
+				});
+				throw new Error(
+					`Failed to send email: ${responseData.message || responseData.error?.message || "Unknown error"}`
+				);
 			}
 
-			const data = await response.json();
-			console.log("Email sent successfully:", data.id);
-			return { success: true, messageId: data.id };
-		} catch (error) {
-			console.error("Error sending email via Resend:", error);
+			console.log("✅ Email sent successfully via Resend:", {
+				messageId: responseData.id,
+				to,
+			});
+			return { success: true, messageId: responseData.id };
+		} catch (error: any) {
+			console.error("❌ Error sending email via Resend:", {
+				message: error.message,
+				stack: error.stack,
+				to,
+			});
 			throw error;
 		}
 	}
 
-	// Fallback: Log email in development
-	if (process.env.NODE_ENV === "development") {
-		console.log("📧 Email (development mode - not sent):");
+	// Check if we're in development mode without Resend configured
+	if (process.env.NODE_ENV === "development" && !process.env.RESEND_API_KEY) {
+		console.log("📧 Email (development mode - RESEND_API_KEY not set, email not sent):");
 		console.log("To:", to);
 		console.log("Subject:", subject);
-		console.log("HTML:", html);
-		return { success: true, messageId: "dev-mode" };
+		console.log("HTML preview:", html.substring(0, 200) + "...");
+		console.warn("⚠️ To send emails in development, set RESEND_API_KEY in .env.local");
+		return { success: true, messageId: "dev-mode-not-sent" };
 	}
 
+	// If we reach here, Resend is not configured and we're in production
 	throw new Error("No email service configured. Please set RESEND_API_KEY environment variable.");
 }
 

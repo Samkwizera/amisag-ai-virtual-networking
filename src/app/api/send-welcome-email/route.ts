@@ -37,21 +37,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if Resend is configured
+    if (!process.env.RESEND_API_KEY) {
+      console.warn('⚠️ RESEND_API_KEY not configured - email will not be sent');
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Email service not configured. RESEND_API_KEY is missing.',
+          warning: 'Email not sent - RESEND_API_KEY environment variable is not set',
+        },
+        { status: 200 } // Return 200 so registration doesn't fail
+      );
+    }
+
     // Send welcome email
-    await sendWelcomeEmail(userData);
+    console.log('📧 Attempting to send welcome email to:', userData.email);
+    const result = await sendWelcomeEmail(userData);
+    console.log('✅ Welcome email sent successfully:', result);
 
     return NextResponse.json({
       success: true,
       message: 'Welcome email sent successfully',
+      messageId: result.messageId,
     });
   } catch (error: any) {
-    console.error('Error sending welcome email:', error);
+    console.error('❌ Error sending welcome email:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+    });
+    
+    // Return success so registration doesn't fail, but log the error
     return NextResponse.json(
       {
         success: false,
         error: error.message || 'Failed to send welcome email',
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
       },
-      { status: 500 }
+      { status: 200 } // Return 200 so registration doesn't fail
     );
   }
 }

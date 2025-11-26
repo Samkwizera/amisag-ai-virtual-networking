@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { db } from '@/db';
 import { session } from '@/db/schema';
 import { eq, desc, and, gt } from 'drizzle-orm';
@@ -6,13 +7,35 @@ import { auth } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
+    // Get cookies from Next.js cookies() helper
+    const cookieStore = await cookies();
+    
+    // Build headers object with cookies for better-auth
+    const headersObj = new Headers();
+    
+    // Copy all request headers
+    request.headers.forEach((value, key) => {
+      headersObj.set(key, value);
+    });
+    
+    // Ensure cookies are included (cookies() helper provides them)
+    const cookieHeader = cookieStore.toString();
+    if (cookieHeader) {
+      headersObj.set('cookie', cookieHeader);
+    }
+
     // Get the current session from better-auth using request headers (includes cookies)
     const sessionData = await auth.api.getSession({ 
-      headers: request.headers 
+      headers: headersObj 
     });
 
     if (!sessionData?.session?.userId) {
-      console.error('No session found. Session data:', sessionData);
+      console.error('No session found. Session data:', {
+        hasSession: !!sessionData?.session,
+        hasUserId: !!sessionData?.session?.userId,
+        sessionData: sessionData,
+        cookieHeader: request.headers.get('cookie') ? 'present' : 'missing'
+      });
       return NextResponse.json(
         { error: 'No active session', details: 'Please sign in first' },
         { status: 401 }

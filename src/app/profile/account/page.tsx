@@ -105,12 +105,22 @@ export default function AccountPage() {
   // Note: Auth protection is handled by the profile layout, so we don't need to redirect here
   useEffect(() => {
     const fetchProfile = async () => {
+      setError(null) // Clear previous errors
+      
       try {
+        // Wait a bit for session to be available (if still loading)
+        if (isSessionPending) {
+          // Wait up to 2 seconds for session to load
+          await new Promise(resolve => setTimeout(resolve, 500))
+        }
+
         // Step 1: Try to get token first (if not in localStorage)
         let token = typeof window !== 'undefined' ? localStorage.getItem("bearer_token") : null
         
+        // If no token, try to fetch it (but don't fail if it doesn't work - cookies might work)
         if (!token) {
           try {
+            console.log("Account page: No token found, fetching from API...")
             const tokenResponse = await fetch("/api/auth/get-token", {
               method: "POST",
               credentials: "include"
@@ -121,11 +131,25 @@ export default function AccountPage() {
               if (tokenData?.token && typeof window !== 'undefined') {
                 localStorage.setItem("bearer_token", tokenData.token)
                 token = tokenData.token
+                console.log("Account page: Token fetched and stored")
+              } else {
+                console.log("Account page: Token response OK but no token in data")
+              }
+            } else {
+              const errorData = await tokenResponse.json().catch(() => ({}))
+              console.log("Account page: Token fetch failed, status:", tokenResponse.status, "error:", errorData)
+              // If it's "No active session", the user might need to sign in again
+              if (errorData.error === "No active session") {
+                console.warn("Account page: No active session - user may need to sign in again")
+                // Don't throw yet - try with cookies first
               }
             }
           } catch (err) {
-            console.debug("Token fetch failed, will try with cookies:", err)
+            console.debug("Account page: Token fetch error, will try with cookies:", err)
+            // Don't throw - will try with cookies
           }
+        } else {
+          console.log("Account page: Token found in localStorage, will use it")
         }
 
         // Step 2: Fetch profile with token (or cookies as fallback)
@@ -135,6 +159,9 @@ export default function AccountPage() {
         
         if (token) {
           headers.Authorization = `Bearer ${token}`
+          console.log("Account page: Fetching profile with bearer token")
+        } else {
+          console.log("Account page: Fetching profile with cookies only")
         }
         
         const response = await fetch("/api/profile", {
@@ -143,8 +170,11 @@ export default function AccountPage() {
         })
 
         if (!response.ok) {
-          // If 401 and we have a token, try refreshing it
-          if (response.status === 401 && token) {
+          console.error("Account page: Profile fetch failed:", response.status)
+          
+          // If 401, try to refresh token and retry
+          if (response.status === 401) {
+            console.log("Account page: 401 error, attempting to refresh token...")
             try {
               const tokenResponse = await fetch("/api/auth/get-token", {
                 method: "POST",
@@ -155,6 +185,7 @@ export default function AccountPage() {
                 const tokenData = await tokenResponse.json()
                 if (tokenData?.token && typeof window !== 'undefined') {
                   localStorage.setItem("bearer_token", tokenData.token)
+                  console.log("Account page: Token refreshed, retrying profile fetch...")
                   
                   // Retry with new token
                   const retryResponse = await fetch("/api/profile", {
@@ -169,6 +200,7 @@ export default function AccountPage() {
                     const retryData = await retryResponse.json()
                     if (retryData && retryData.id) {
                       // Success with retry
+                      console.log("Account page: Profile fetched successfully after retry")
                       const username = retryData.username || retryData.email?.split("@")[0] || ""
                       const interests = retryData.skills?.join(", ") || retryData.interests || ""
                       const industry = retryData.industries?.[0] || retryData.company || ""
@@ -189,11 +221,18 @@ export default function AccountPage() {
                       setIsLoading(false)
                       return
                     }
+                  } else {
+                    const retryErrorData = await retryResponse.json().catch(() => ({ error: `HTTP ${retryResponse.status}` }))
+                    throw new Error(retryErrorData.error || `Failed to fetch profile after retry: ${retryResponse.status}`)
                   }
                 }
+              } else {
+                const tokenErrorData = await tokenResponse.json().catch(() => ({ error: "Failed to get token" }))
+                throw new Error(tokenErrorData.error || "Failed to refresh token")
               }
-            } catch (refreshErr) {
-              console.error("Failed to refresh token:", refreshErr)
+            } catch (refreshErr: any) {
+              console.error("Account page: Failed to refresh token:", refreshErr)
+              throw new Error(refreshErr?.message || "Failed to refresh authentication. Please try signing in again.")
             }
           }
           
@@ -207,6 +246,7 @@ export default function AccountPage() {
           throw new Error("Invalid profile data received")
         }
 
+        console.log("Account page: Profile fetched successfully:", { id: data.id, name: data.name })
         setProfile(data)
         
         // Populate form with fetched data
@@ -228,7 +268,7 @@ export default function AccountPage() {
         })
         setError(null) // Clear any previous errors
       } catch (error: any) {
-        console.error("Error fetching profile:", error)
+        console.error("Account page: Error fetching profile:", error)
         const errorMessage = error?.message || "Failed to load profile"
         setError(errorMessage)
         toast.error(errorMessage)
@@ -237,13 +277,13 @@ export default function AccountPage() {
       }
     }
 
-    // Small delay to ensure token is available
+    // Wait a bit longer to ensure session/token is available
     const timer = setTimeout(() => {
       fetchProfile()
-    }, 200)
+    }, 500) // Increased delay to 500ms
     
     return () => clearTimeout(timer)
-  }, [form]) // Only depend on form, not session
+  }, [form, isSessionPending]) // Added isSessionPending to dependencies
 
   // Handle form submission
   const onSubmit = async (values: AccountFormValues) => {
@@ -271,6 +311,7 @@ export default function AccountPage() {
         credentials: "include",
         body: JSON.stringify({
           name: values.fullName,
+          username: values.username, // Include username in update
           bio: values.bio || null,
           location: values.location || null,
           role: values.role || null,

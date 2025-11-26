@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { db } from '@/db';
 import { user, session } from '@/db/schema';
 import { eq, and, gt } from 'drizzle-orm';
@@ -42,9 +43,25 @@ async function validateSession(request: NextRequest) {
   
   // Fallback: Try to get session from cookies using better-auth
   try {
-    // Use request.headers directly (same as get-token route)
+    // Get cookies from Next.js cookies() helper
+    const cookieStore = await cookies();
+    
+    // Build headers object with cookies for better-auth
+    const headersObj = new Headers();
+    
+    // Copy all request headers
+    request.headers.forEach((value, key) => {
+      headersObj.set(key, value);
+    });
+    
+    // Ensure cookies are included (cookies() helper provides them)
+    const cookieHeader = cookieStore.toString();
+    if (cookieHeader) {
+      headersObj.set('cookie', cookieHeader);
+    }
+    
     const sessionData = await auth.api.getSession({ 
-      headers: request.headers
+      headers: headersObj
     });
     
     if (sessionData?.session?.userId) {
@@ -58,7 +75,7 @@ async function validateSession(request: NextRequest) {
   }
   
   // No valid session found
-  console.error('No valid session found - authHeader:', authHeader ? 'present' : 'missing');
+  console.error('No valid session found - authHeader:', authHeader ? 'present' : 'missing', 'hasCookie:', !!request.headers.get('cookie'));
   return { error: 'Authorization required', status: 401 };
 }
 

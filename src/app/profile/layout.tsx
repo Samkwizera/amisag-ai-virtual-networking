@@ -64,6 +64,7 @@ export default function ProfileLayout({
   // Token is the source of truth
   
   // Check authentication ONLY on mount, not on every navigation
+  // CRITICAL: Remove pathname from dependencies to prevent re-checking on navigation
   useEffect(() => {
     // If we already checked, don't check again
     if (hasCheckedAuth.current) return
@@ -194,7 +195,7 @@ export default function ProfileLayout({
         setIsInitialLoad(false)
       }
     }
-  }, [token, justSignedIn, session?.user, isPending, router, pathname])
+  }, [token, justSignedIn, session?.user, isPending, router]) // Removed pathname from dependencies
   
   // Timeout effect for loading screen - must be called unconditionally (hooks rule)
   useEffect(() => {

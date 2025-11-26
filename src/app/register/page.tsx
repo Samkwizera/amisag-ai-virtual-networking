@@ -69,7 +69,7 @@ export default function RegisterPage() {
       // Send welcome email after successful registration
       // Note: better-auth may not return user data immediately, so we'll send email using the form data
       try {
-        await fetch('/api/send-welcome-email', {
+        const emailResponse = await fetch('/api/send-welcome-email', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -79,9 +79,19 @@ export default function RegisterPage() {
             name: formData.name 
           }),
         })
+        
+        const emailResult = await emailResponse.json()
+        
+        if (emailResult.success) {
+          console.log('✅ Welcome email sent successfully')
+        } else {
+          console.warn('⚠️ Welcome email failed:', emailResult.error || emailResult.warning)
+          // Don't show error to user - registration succeeded
+        }
       } catch (emailError) {
         // Don't fail registration if email fails
-        console.error('Failed to send welcome email:', emailError)
+        console.error('❌ Failed to send welcome email:', emailError)
+        // Don't show error to user - registration succeeded
       }
 
       toast.success("Account created successfully!")
