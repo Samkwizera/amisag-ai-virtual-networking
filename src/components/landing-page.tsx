@@ -28,8 +28,12 @@ export function LandingPage() {
   const router = useRouter()
 
   // Redirect authenticated users to profile dashboard
+  // Check for both session and token (token might exist before session is loaded)
   useEffect(() => {
-    if (!isPending && session?.user) {
+    const token = typeof window !== 'undefined' ? localStorage.getItem("bearer_token") : null
+    
+    // If we have a token or session, redirect to dashboard
+    if (!isPending && (session?.user || token)) {
       router.push("/profile/dashboard")
     }
   }, [session?.user, isPending, router])
@@ -49,8 +53,9 @@ export function LandingPage() {
     }
   }
 
-  // Show loading or nothing while redirecting authenticated users
-  if (!isPending && session?.user) {
+  // Show loading or redirecting if we have session or token
+  const token = typeof window !== 'undefined' ? localStorage.getItem("bearer_token") : null
+  if (!isPending && (session?.user || token)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -68,18 +73,48 @@ export function LandingPage() {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Logo size="md" className="text-foreground" />
           <div className="hidden md:flex items-center gap-8">
-            <Link href="#features" className="text-sm hover:text-primary transition-all duration-300 relative group">
+            <a 
+              href="#features" 
+              onClick={(e) => {
+                e.preventDefault();
+                const element = document.getElementById('features');
+                if (element) {
+                  element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+              }}
+              className="text-sm hover:text-primary transition-all duration-300 relative group cursor-pointer"
+            >
               Features
               <span className="absolute inset-0 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-primary/10 blur-sm -z-10"></span>
-            </Link>
-            <Link href="#how-it-works" className="text-sm hover:text-primary transition-all duration-300 relative group">
+            </a>
+            <a 
+              href="#how-it-works" 
+              onClick={(e) => {
+                e.preventDefault();
+                const element = document.getElementById('how-it-works');
+                if (element) {
+                  element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+              }}
+              className="text-sm hover:text-primary transition-all duration-300 relative group cursor-pointer"
+            >
               How It Works
               <span className="absolute inset-0 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-primary/10 blur-sm -z-10"></span>
-            </Link>
-            <Link href="#testimonials" className="text-sm hover:text-primary transition-all duration-300 relative group">
+            </a>
+            <a 
+              href="#testimonials" 
+              onClick={(e) => {
+                e.preventDefault();
+                const element = document.getElementById('testimonials');
+                if (element) {
+                  element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+              }}
+              className="text-sm hover:text-primary transition-all duration-300 relative group cursor-pointer"
+            >
               Testimonials
               <span className="absolute inset-0 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-primary/10 blur-sm -z-10"></span>
-            </Link>
+            </a>
           </div>
           <div className="flex items-center gap-3">
             {isPending ? (

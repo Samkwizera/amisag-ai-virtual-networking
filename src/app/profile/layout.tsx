@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Sparkles, Users, MessageSquare, LogOut, User, BarChart3, Settings } from "lucide-react"
 import Link from "next/link"
 import { useSession, authClient } from "@/lib/auth-client"
-import { useEffect } from "react"
+import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { Logo } from "@/components/ui/logo"
 
@@ -18,6 +18,14 @@ export default function ProfileLayout({
   const pathname = usePathname()
   const router = useRouter()
   const { data: session, isPending } = useSession()
+  const hasCheckedAuth = useRef(false)
+  
+  // Get token and justSignedIn flag immediately
+  const token = typeof window !== 'undefined' ? localStorage.getItem("bearer_token") : null
+  const justSignedIn = typeof window !== 'undefined' ? sessionStorage.getItem('just_signed_in') === 'true' : false
+  
+  // If just signed in, immediately set state to allow rendering
+  const [isInitialLoad, setIsInitialLoad] = useState(!justSignedIn && !token)
 
   // Determine active tab from pathname
   const getActiveTab = () => {
@@ -49,37 +57,169 @@ export default function ProfileLayout({
     }
   }
 
-  // Redirect to login if not authenticated
-  // Only redirect if we've confirmed there's no session AND no token
+  // Token and justSignedIn are already defined above
+  
+  // CRITICAL: If we have a token, we're authenticated - don't check anything else
+  // This prevents redirects during navigation between tabs
+  // Token is the source of truth
+  
+  // Check authentication ONLY on mount, not on every navigation
   useEffect(() => {
-    // Don't redirect while still checking
-    if (isPending) return
+    // If we already checked, don't check again
+    if (hasCheckedAuth.current) return
     
-    const token = typeof window !== 'undefined' ? localStorage.getItem("bearer_token") : null
+    // CRITICAL: If we just signed in, render IMMEDIATELY - don't wait for anything
+    // IMPORTANT: Don't remove the flag immediately - keep it to prevent redirects
+    if (justSignedIn) {
+      console.log("✅ Just signed in - rendering immediately, keeping flag to prevent redirect")
+      hasCheckedAuth.current = true
+      setIsInitialLoad(false)
+      
+      // Don't remove flag yet - keep it for a few seconds to prevent redirect loop
+      // Fetch token in background (non-blocking)
+      fetch("/api/auth/get-token", {
+        method: "POST",
+        credentials: "include"
+      })
+        .then(res => res.ok ? res.json() : null)
+        .then((response: any) => {
+          if (response?.token && typeof window !== 'undefined') {
+            localStorage.setItem("bearer_token", response.token)
+            console.log("✅ Token stored after sign-in")
+            // Now safe to remove flag after token is stored
+            setTimeout(() => {
+              if (typeof window !== 'undefined') {
+                sessionStorage.removeItem('just_signed_in')
+                console.log("✅ Removed just_signed_in flag")
+              }
+            }, 1000)
+          }
+        })
+        .catch(() => {
+          // Even if token fetch fails, keep flag for a bit longer
+          setTimeout(() => {
+            if (typeof window !== 'undefined') {
+              sessionStorage.removeItem('just_signed_in')
+            }
+          }, 3000)
+        })
+      return // Don't check further - allow rendering
+    }
     
-    // If no session and no token, redirect to login
-    if (!session?.user && !token) {
-      router.push("/login?redirect=" + encodeURIComponent(pathname || "/profile/dashboard"))
+    // If we have a token, render immediately
+    if (token) {
+      console.log("✅ Token found - rendering immediately")
+      hasCheckedAuth.current = true
+      setIsInitialLoad(false)
       return
     }
     
-    // If we have a token but no session after a delay, the token might be invalid
-    // But give it more time since session fetching can take a moment
-    if (token && !session?.user) {
+    // If we have a session, allow rendering immediately
+    if (session?.user) {
+      console.log("✅ Session found - rendering immediately")
+      hasCheckedAuth.current = true
+      setIsInitialLoad(false)
+      
+      // Try to get token if we don't have it (non-blocking)
+      if (!token) {
+        fetch("/api/auth/get-token", {
+          method: "POST",
+          credentials: "include"
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.token && typeof window !== 'undefined') {
+              localStorage.setItem("bearer_token", data.token)
+            }
+          })
+          .catch(() => {}) // Silently fail
+      }
+      return
+    }
+    
+    // Wait briefly for session to load (only if pending) - but don't wait too long
+    if (isPending) {
+      console.log("⏳ Waiting for session...")
       const timer = setTimeout(() => {
-        // Double-check token still exists and session is still null
-        const currentToken = typeof window !== 'undefined' ? localStorage.getItem("bearer_token") : null
-        if (currentToken && !session?.user) {
-          // Token exists but no session - might be invalid, but don't redirect immediately
-          // Let the user try to use the app, API calls will handle auth errors
+        console.log("⏳ Session check timeout - checking again")
+        if (session?.user) {
+          // Session found - allow rendering
+          console.log("✅ Session found after wait - rendering")
+          hasCheckedAuth.current = true
+          setIsInitialLoad(false)
+          
+          // Try to get token (non-blocking)
+          fetch("/api/auth/get-token", {
+            method: "POST",
+            credentials: "include"
+          })
+            .then(res => res.json())
+            .then(data => {
+              if (data.token && typeof window !== 'undefined') {
+                localStorage.setItem("bearer_token", data.token)
+              }
+            })
+            .catch(() => {})
+        } else {
+          // No session - but if we just signed in, allow rendering anyway
+          if (justSignedIn) {
+            console.log("✅ Just signed in - allowing render despite no session")
+            hasCheckedAuth.current = true
+            setIsInitialLoad(false)
+          } else {
+            // No session and didn't just sign in - redirect to login
+            console.log("❌ No session - redirecting to login")
+            router.push("/login?redirect=" + encodeURIComponent(pathname || "/profile/dashboard"))
+            hasCheckedAuth.current = true
+            setIsInitialLoad(false)
+          }
         }
-      }, 2000)
+      }, 300) // Very short timeout - 300ms max
+      
       return () => clearTimeout(timer)
     }
-  }, [isPending, session?.user, router, pathname])
-
-  // Show loading state while checking authentication
-  if (isPending) {
+    
+    // No session and not pending - check if we just signed in
+    if (!session?.user && !isPending) {
+      if (justSignedIn) {
+        // Just signed in - allow rendering even without session (cookies will work)
+        console.log("✅ Just signed in - allowing render without session")
+        hasCheckedAuth.current = true
+        setIsInitialLoad(false)
+      } else {
+        // No session and didn't just sign in - redirect to login
+        console.log("❌ No session and not just signed in - redirecting")
+        router.push("/login?redirect=" + encodeURIComponent(pathname || "/profile/dashboard"))
+        hasCheckedAuth.current = true
+        setIsInitialLoad(false)
+      }
+    }
+  }, [token, justSignedIn, session?.user, isPending, router, pathname])
+  
+  // Timeout effect for loading screen - must be called unconditionally (hooks rule)
+  useEffect(() => {
+    // Only set timeout if we're showing loading screen
+    if (!justSignedIn && !token && !session?.user && isInitialLoad && !hasCheckedAuth.current) {
+      const timer = setTimeout(() => {
+        console.log("⏰ Loading timeout - allowing render anyway")
+        hasCheckedAuth.current = true
+        setIsInitialLoad(false)
+      }, 1000)
+      
+      return () => clearTimeout(timer)
+    }
+  }, [justSignedIn, token, session?.user, isInitialLoad])
+  
+  // CRITICAL: If just signed in OR have token OR have session, render immediately
+  // Check this FIRST before any loading screen logic
+  // IMPORTANT: Don't redirect if justSignedIn is true - allow rendering
+  if (justSignedIn || token || session?.user) {
+    console.log("✅ Rendering immediately - auth detected:", { justSignedIn, hasToken: !!token, hasSession: !!session?.user })
+    // Continue to render - don't show loading screen or redirect
+  }
+  // Only show loading if we don't have any auth indicators AND we're still checking
+  else if (isInitialLoad && !hasCheckedAuth.current) {
+    console.log("⏳ Showing loading screen - no auth detected yet")
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -89,14 +229,17 @@ export default function ProfileLayout({
       </div>
     )
   }
-
-  // Allow rendering if we have a token, even if session is still loading
-  // The individual pages will handle their own data fetching with proper error handling
-  const token = typeof window !== 'undefined' ? localStorage.getItem("bearer_token") : null
-  
-  // Only block if we're certain there's no session AND no token AND not loading
-  if (!isPending && !session?.user && !token) {
-    return null
+  // No auth and we've checked - redirect ONLY if we didn't just sign in
+  else if (!token && !session?.user && hasCheckedAuth.current && !justSignedIn) {
+    console.log("❌ No auth and not just signed in - redirecting to login")
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-[oklch(0.75_0.15_85)] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Redirecting...</p>
+        </div>
+      </div>
+    )
   }
 
   return (

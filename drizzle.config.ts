@@ -2,13 +2,17 @@
 import { defineConfig } from 'drizzle-kit';
 import type { Config } from 'drizzle-kit';
 
+// Support both local SQLite files and Turso remote databases
+const dbUrl = process.env.TURSO_CONNECTION_URL || 'file:./local.db';
+const isLocalFile = dbUrl.startsWith('file:');
+
 const dbConfig: Config = defineConfig({
   schema: './src/db/schema.ts',
   out: './drizzle',
-  dialect: 'turso',
+  dialect: isLocalFile ? 'sqlite' : 'turso',
   dbCredentials: {
-    url: process.env.TURSO_CONNECTION_URL!,
-    authToken: process.env.TURSO_AUTH_TOKEN!,
+    url: dbUrl,
+    ...(isLocalFile ? {} : { authToken: process.env.TURSO_AUTH_TOKEN! }),
   },
 });
 

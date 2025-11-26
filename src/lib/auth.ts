@@ -15,6 +15,7 @@ const emailConfig = process.env.RESEND_API_KEY
 	: undefined;
 
 export const auth = betterAuth({
+	baseURL: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3001",
 	database: drizzleAdapter(db, {
 		provider: "sqlite",
 	}),

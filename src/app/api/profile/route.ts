@@ -2,57 +2,83 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { user, session } from '@/db/schema';
 import { eq, and, gt } from 'drizzle-orm';
+import { auth } from '@/lib/auth';
 
-// Helper function to validate and extract token from Authorization header
+// Helper function to validate and extract token from Authorization header or cookies
 async function validateSession(request: NextRequest) {
   const authHeader = request.headers.get('Authorization');
   
-  if (!authHeader) {
-    return { error: 'Authorization header missing', status: 401 };
-  }
+  // Try bearer token first
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7).trim();
+    
+    if (token) {
+      try {
+        // Query session table to validate token
+        const sessionRecord = await db.select()
+          .from(session)
+          .where(eq(session.token, token))
+          .limit(1);
 
-  if (!authHeader.startsWith('Bearer ')) {
-    return { error: 'Invalid Authorization header format', status: 401 };
-  }
+        if (sessionRecord.length > 0) {
+          const userSession = sessionRecord[0];
 
-  const token = authHeader.substring(7).trim();
+          // Check if session is expired
+          const now = new Date();
+          if (userSession.expiresAt > now) {
+            console.log('Valid bearer token found for userId:', userSession.userId);
+            return { userId: userSession.userId };
+          } else {
+            console.log('Bearer token expired');
+          }
+        } else {
+          console.log('Bearer token not found in database');
+        }
+      } catch (error) {
+        console.error('Session validation error:', error);
+      }
+    }
+  }
   
-  if (!token) {
-    return { error: 'Token missing from Authorization header', status: 401 };
-  }
-
+  // Fallback: Try to get session from cookies using better-auth
   try {
-    // Query session table to validate token
-    const sessionRecord = await db.select()
-      .from(session)
-      .where(eq(session.token, token))
-      .limit(1);
-
-    if (sessionRecord.length === 0) {
-      return { error: 'Invalid session token', status: 401 };
+    // Use request.headers directly (same as get-token route)
+    const sessionData = await auth.api.getSession({ 
+      headers: request.headers
+    });
+    
+    if (sessionData?.session?.userId) {
+      console.log('Valid cookie session found for userId:', sessionData.session.userId);
+      return { userId: sessionData.session.userId };
+    } else {
+      console.log('No cookie session found in better-auth');
     }
-
-    const userSession = sessionRecord[0];
-
-    // Check if session is expired
-    const now = new Date();
-    if (userSession.expiresAt <= now) {
-      return { error: 'Session expired', status: 401 };
-    }
-
-    return { userId: userSession.userId };
   } catch (error) {
-    console.error('Session validation error:', error);
-    return { error: 'Session validation failed', status: 500 };
+    console.error('Cookie session validation failed:', error);
   }
+  
+  // No valid session found
+  console.error('No valid session found - authHeader:', authHeader ? 'present' : 'missing');
+  return { error: 'Authorization required', status: 401 };
 }
 
 export async function GET(request: NextRequest) {
   try {
+    console.log('GET /api/profile - Request headers:', {
+      hasAuth: !!request.headers.get('Authorization'),
+      hasCookie: !!request.headers.get('cookie'),
+    })
+    
     // Validate session and get userId
     const validationResult = await validateSession(request);
     
     if ('error' in validationResult) {
+      console.error('GET /api/profile - Session validation failed:', {
+        error: validationResult.error,
+        status: validationResult.status,
+        hasAuthHeader: !!request.headers.get('Authorization'),
+        hasCookie: !!request.headers.get('cookie'),
+      });
       return NextResponse.json(
         { error: validationResult.error, code: 'AUTHENTICATION_FAILED' },
         { status: validationResult.status }
@@ -60,6 +86,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { userId } = validationResult;
+    console.log('Fetching profile for userId:', userId);
 
     // Query user table to get full profile
     const userProfile = await db.select()
@@ -68,13 +95,32 @@ export async function GET(request: NextRequest) {
       .limit(1);
 
     if (userProfile.length === 0) {
+      console.error('User not found in database for userId:', userId);
       return NextResponse.json(
-        { error: 'User not found', code: 'USER_NOT_FOUND' },
+        { error: 'User not found', code: 'USER_NOT_FOUND', userId },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(userProfile[0], { status: 200 });
+    const profileData = userProfile[0];
+    console.log('Profile found:', { id: profileData.id, name: profileData.name, email: profileData.email });
+
+    // Ensure all fields are properly formatted
+    const formattedProfile = {
+      ...profileData,
+      skills: profileData.skills || null,
+      goals: profileData.goals || null,
+      industries: profileData.industries || null,
+      bio: profileData.bio || null,
+      location: profileData.location || null,
+      role: profileData.role || null,
+      company: profileData.company || null,
+      linkedinUrl: profileData.linkedinUrl || null,
+      portfolioUrl: profileData.portfolioUrl || null,
+      profileImage: profileData.profileImage || profileData.image || null,
+    };
+
+    return NextResponse.json(formattedProfile, { status: 200 });
   } catch (error) {
     console.error('GET /api/profile error:', error);
     return NextResponse.json(

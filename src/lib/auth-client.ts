@@ -13,19 +13,8 @@ export const authClient = createAuthClient({
       headers: {
         Authorization: `Bearer ${typeof window !== 'undefined' ? localStorage.getItem("bearer_token") || "" : ""}`,
       },
-      onSuccess: (ctx) => {
-          const authToken = ctx.response.headers.get("set-auth-token")
-          // Store the token securely (e.g., in localStorage)
-          if(authToken){
-            // Split token at "." and take only the first part
-            const tokenPart = authToken.includes('.') ? authToken.split('.')[0] : authToken;
-            if (typeof window !== 'undefined') {
-              localStorage.setItem("bearer_token", tokenPart);
-              // Clear cache when token changes
-              sessionCache = null
-            }
-          }
-      }
+      // Remove onSuccess callback to prevent any blocking operations
+      // Token will be fetched separately via /api/auth/get-token
   }
 });
 
@@ -47,15 +36,6 @@ export function useSession(): SessionData {
       try {
          const token = typeof window !== 'undefined' ? localStorage.getItem("bearer_token") : null
          
-         // If no token, set session to null immediately
-         if (!token) {
-            setSession(null);
-            setError(null);
-            setIsPending(false);
-            sessionCache = null
-            return;
-         }
-
          // Check cache first
          const now = Date.now()
          if (sessionCache && (now - sessionCacheTime) < CACHE_DURATION) {
@@ -64,20 +44,80 @@ export function useSession(): SessionData {
             return;
          }
 
-         const res = await authClient.getSession({
-            fetchOptions: {
-               auth: {
-                  type: "Bearer",
-                  token: token,
-               },
-            },
-         });
+         // Try to get session - if we have a token, use it; otherwise use cookies
+         let res;
+         if (token) {
+            // Use bearer token if available
+            try {
+               res = await authClient.getSession({
+                  fetchOptions: {
+                     auth: {
+                        type: "Bearer",
+                        token: token,
+                     },
+                  },
+               });
+            } catch (tokenErr) {
+               // If token-based session fails, try cookies
+               console.debug("Token-based session failed, trying cookies:", tokenErr)
+               try {
+                  const sessionResponse = await fetch("/api/auth/session", {
+                     method: "GET",
+                     credentials: "include"
+                  });
+                  
+                  if (sessionResponse.ok) {
+                     const sessionData = await sessionResponse.json();
+                     res = { data: sessionData };
+                  } else {
+                     // Try authClient without auth (uses cookies)
+                     res = await authClient.getSession();
+                  }
+               } catch (fetchErr) {
+                  // If all fails, try authClient without auth
+                  res = await authClient.getSession();
+               }
+            }
+         } else {
+            // No token - try using cookies
+            try {
+               // Try authClient.getSession first (uses cookies automatically)
+               res = await authClient.getSession();
+               
+               // Check if token is in response headers
+               // Note: We can't access headers from authClient.getSession response directly
+               // So we'll try the API endpoint
+               try {
+                  const sessionResponse = await fetch("/api/auth/session", {
+                     method: "GET",
+                     credentials: "include"
+                  });
+                  
+                  if (sessionResponse.ok) {
+                     const headerToken = sessionResponse.headers.get("set-auth-token");
+                     if (headerToken && typeof window !== 'undefined') {
+                        localStorage.setItem("bearer_token", headerToken);
+                     }
+                  }
+               } catch (headerErr) {
+                  // Ignore header check errors
+                  console.debug("Header check failed:", headerErr)
+               }
+            } catch (fetchErr) {
+               // If fetch fails, set session to null
+               setSession(null);
+               setError(null);
+               setIsPending(false);
+               sessionCache = null;
+               return;
+            }
+         }
          
          // Cache the session
-         sessionCache = res.data
+         sessionCache = res?.data || null
          sessionCacheTime = now
          
-         setSession(res.data);
+         setSession(res?.data || null);
          setError(null);
       } catch (err) {
          setSession(null);

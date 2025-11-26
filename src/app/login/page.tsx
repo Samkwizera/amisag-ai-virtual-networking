@@ -16,7 +16,7 @@ import { Logo } from "@/components/ui/logo"
 export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const redirect = searchParams.get("redirect") || "/network"
+  const redirect = searchParams.get("redirect") || "/profile/dashboard"
   const registered = searchParams.get("registered")
 
   const [isLoading, setIsLoading] = useState(false)
@@ -31,59 +31,83 @@ export default function LoginPage() {
     e.preventDefault()
     setIsLoading(true)
 
+    const startTime = Date.now()
+    console.log("🔐 Sign-in started")
+
     try {
-      const { data, error } = await authClient.signIn.email({
+      // Sign in - measure timing
+      const signInStart = Date.now()
+      console.log("📡 Calling signIn.email API...")
+      
+      const response = await authClient.signIn.email({
         email: formData.email,
         password: formData.password,
         rememberMe: formData.rememberMe,
-        callbackURL: redirect
       })
 
+      const signInEnd = Date.now()
+      const signInDuration = signInEnd - signInStart
+      console.log(`✅ Sign-in API completed in ${signInDuration}ms`)
+
+      const { data, error } = response
+
       if (error?.code) {
+        console.error("❌ Sign-in error:", error)
         toast.error("Invalid email or password. Please make sure you have already registered an account and try again.")
         setIsLoading(false)
         return
       }
 
-      toast.success("Welcome back!")
+      // CRITICAL: Redirect IMMEDIATELY - do absolutely nothing before redirect
+      const redirectStart = Date.now()
+      const timeBeforeRedirect = redirectStart - startTime
+      console.log(`🚀 Redirecting at ${timeBeforeRedirect}ms (API took ${signInDuration}ms)`)
       
-      // Check if profile needs completion
-      try {
-        const token = localStorage.getItem("bearer_token")
-        if (token) {
-          const profileResponse = await fetch("/api/profile", {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          })
-          
-          if (profileResponse.ok) {
-            const profile = await profileResponse.json()
-            // Check if profile is incomplete (missing essential fields)
-            const isProfileIncomplete = !profile.bio || !profile.location || !profile.skills || 
-              (Array.isArray(profile.skills) ? profile.skills.length === 0 : !profile.skills)
-            
-            if (isProfileIncomplete) {
-              router.push("/onboarding")
-              return
-            }
-          }
-        }
-      } catch (error) {
-        // If profile check fails, continue to redirect
-        console.error("Profile check error:", error)
+      // Set flag before redirect (very fast)
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('just_signed_in', 'true')
       }
       
-      // Redirect to profile dashboard after successful login
-      const finalRedirect = redirect === "/login" || redirect === "/" || redirect === "/landing" 
-        ? "/profile/dashboard" 
-        : redirect.startsWith("/profile") 
-          ? redirect 
-          : `/profile${redirect}`
+      // Use Next.js router for faster client-side navigation (no full page reload)
+      router.replace("/profile/dashboard")
       
-      router.push(finalRedirect)
-    } catch (error) {
-      toast.error("An unexpected error occurred. Please try again.")
+      // Everything below executes in parallel with redirect (or doesn't execute)
+      // These operations happen AFTER redirect starts
+      
+      // Set flag (may not execute due to redirect)
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('just_signed_in', 'true')
+      }
+      
+      // Update loading state (may not execute)
+      setIsLoading(false)
+      
+      // Everything below may not execute due to redirect, but that's fine
+      // These are fire-and-forget operations
+      
+      // Show success toast (non-blocking, may not show due to redirect)
+      toast.success("Welcome back!")
+      
+      // Start token fetch in background (completely non-blocking)
+      fetch("/api/auth/get-token", {
+        method: "POST",
+        credentials: "include"
+      })
+        .then(res => res.ok ? res.json() : null)
+        .then((tokenData: any) => {
+          if (tokenData?.token && typeof window !== 'undefined') {
+            localStorage.setItem("bearer_token", tokenData.token)
+            console.log("✅ Token stored in localStorage")
+          }
+        })
+        .catch((err) => {
+          console.debug("Token fetch failed (non-blocking):", err)
+        })
+    } catch (error: any) {
+      const errorTime = Date.now()
+      console.error(`❌ Sign-in error after ${errorTime - startTime}ms:`, error)
+      const errorMessage = error?.message || "An unexpected error occurred. Please try again."
+      toast.error(errorMessage)
       setIsLoading(false)
     }
   }
