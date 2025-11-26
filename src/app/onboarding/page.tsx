@@ -12,6 +12,7 @@ import { motion } from "framer-motion"
 import { useRouter } from "next/navigation"
 import { useSession } from "@/lib/auth-client"
 import { toast } from "sonner"
+import { Logo } from "@/components/ui/logo"
 
 const skills = [
   "UI/UX Design", "Frontend Dev", "Backend Dev", "Data Science", 
@@ -97,7 +98,9 @@ export default function OnboardingPage() {
       }
 
       toast.success("Profile created successfully!")
-      router.push("/profile")
+      
+      // Redirect to profile dashboard after onboarding
+      router.push("/profile/dashboard")
     } catch (error) {
       console.error("Error saving profile:", error)
       toast.error("Failed to save profile. Please try again.")
@@ -152,11 +155,8 @@ export default function OnboardingPage() {
       <div className="w-full max-w-2xl">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="w-10 h-10 bg-gradient-to-br from-[oklch(0.75_0.15_85)] to-[oklch(0.65_0.15_220)] rounded-lg flex items-center justify-center">
-              <Sparkles className="w-6 h-6 text-background" />
-            </div>
-            <span className="text-2xl font-bold">Amisag</span>
+          <div className="flex items-center justify-center mb-4">
+            <Logo size="lg" asLink={false} />
           </div>
           <h1 className="text-3xl font-bold mb-2">Welcome to Amisag</h1>
           <p className="text-muted-foreground">Let&apos;s set up your profile</p>

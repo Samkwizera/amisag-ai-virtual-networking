@@ -11,11 +11,12 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { authClient } from "@/lib/auth-client"
 import { toast } from "sonner"
 import { Eye, EyeOff, Sparkles } from "lucide-react"
+import { Logo } from "@/components/ui/logo"
 
 export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const redirect = searchParams.get("redirect") || "/"
+  const redirect = searchParams.get("redirect") || "/network"
   const registered = searchParams.get("registered")
 
   const [isLoading, setIsLoading] = useState(false)
@@ -45,7 +46,42 @@ export default function LoginPage() {
       }
 
       toast.success("Welcome back!")
-      router.push(redirect)
+      
+      // Check if profile needs completion
+      try {
+        const token = localStorage.getItem("bearer_token")
+        if (token) {
+          const profileResponse = await fetch("/api/profile", {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          })
+          
+          if (profileResponse.ok) {
+            const profile = await profileResponse.json()
+            // Check if profile is incomplete (missing essential fields)
+            const isProfileIncomplete = !profile.bio || !profile.location || !profile.skills || 
+              (Array.isArray(profile.skills) ? profile.skills.length === 0 : !profile.skills)
+            
+            if (isProfileIncomplete) {
+              router.push("/onboarding")
+              return
+            }
+          }
+        }
+      } catch (error) {
+        // If profile check fails, continue to redirect
+        console.error("Profile check error:", error)
+      }
+      
+      // Redirect to profile dashboard after successful login
+      const finalRedirect = redirect === "/login" || redirect === "/" || redirect === "/landing" 
+        ? "/profile/dashboard" 
+        : redirect.startsWith("/profile") 
+          ? redirect 
+          : `/profile${redirect}`
+      
+      router.push(finalRedirect)
     } catch (error) {
       toast.error("An unexpected error occurred. Please try again.")
       setIsLoading(false)
@@ -61,12 +97,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 group">
-            <div className="w-10 h-10 bg-gradient-to-br from-[oklch(0.75_0.15_85)] to-[oklch(0.65_0.15_220)] rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-              <Sparkles className="w-6 h-6 text-background" />
-            </div>
-            <span className="text-2xl font-bold">Amisag</span>
-          </Link>
+          <Logo size="lg" href="/" />
           <p className="text-muted-foreground mt-2">Networking made fun</p>
         </div>
 

@@ -24,6 +24,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
+import { Logo } from "@/components/ui/logo"
 
 // Mock data for communities
 const communities = [
@@ -149,12 +150,7 @@ export default function CommunityChatPage({ params }: { params: { id: string } }
             >
               <ChevronLeft className="w-5 h-5" />
             </Button>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-[oklch(0.75_0.15_85)] to-[oklch(0.65_0.15_220)] rounded-lg flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-background" />
-              </div>
-              <span className="text-xl font-bold hidden sm:inline">Amisag</span>
-            </div>
+            <Logo size="md" href="/communities" className="hidden sm:flex" />
           </div>
           <Button
             variant="ghost"

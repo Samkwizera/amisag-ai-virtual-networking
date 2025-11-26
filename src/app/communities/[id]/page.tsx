@@ -23,6 +23,7 @@ import {
 import Link from "next/link"
 import { useState } from "react"
 import { motion } from "framer-motion"
+import { Logo } from "@/components/ui/logo"
 
 // Mock data
 const communityData = {
@@ -143,12 +144,7 @@ export default function CommunityDetailsPage({ params }: { params: { id: string 
                 <ChevronLeft className="w-5 h-5" />
               </Link>
             </Button>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-[oklch(0.75_0.15_85)] to-[oklch(0.65_0.15_220)] rounded-lg flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-background" />
-              </div>
-              <span className="text-xl font-bold">Amisag</span>
-            </div>
+            <Logo size="md" href="/communities" />
           </div>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon">

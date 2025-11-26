@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { authClient } from "@/lib/auth-client"
 import { toast } from "sonner"
 import { Eye, EyeOff, Sparkles } from "lucide-react"
+import { Logo } from "@/components/ui/logo"
 
 type ErrorTypes = Partial<Record<keyof typeof authClient.$ERROR_CODES, string>>
 const errorCodes = {
@@ -53,7 +54,7 @@ export default function RegisterPage() {
     setIsLoading(true)
 
     try {
-      const { error } = await authClient.signUp.email({
+      const { data, error } = await authClient.signUp.email({
         email: formData.email,
         name: formData.name,
         password: formData.password
@@ -65,8 +66,47 @@ export default function RegisterPage() {
         return
       }
 
+      // Send welcome email after successful registration
+      // Note: better-auth may not return user data immediately, so we'll send email using the form data
+      try {
+        await fetch('/api/send-welcome-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            email: formData.email,
+            name: formData.name 
+          }),
+        })
+      } catch (emailError) {
+        // Don't fail registration if email fails
+        console.error('Failed to send welcome email:', emailError)
+      }
+
       toast.success("Account created successfully!")
-      router.push("/login?registered=true")
+      
+      // Auto-login after registration
+      try {
+        const { data: signInData, error: signInError } = await authClient.signIn.email({
+          email: formData.email,
+          password: formData.password,
+          rememberMe: false,
+          callbackURL: "/onboarding"
+        })
+
+        if (signInError?.code) {
+          // If auto-login fails, redirect to login page
+          router.push("/login?registered=true")
+          return
+        }
+
+        // Redirect to onboarding to complete profile, then to dashboard
+        router.push("/onboarding")
+      } catch (error) {
+        // If auto-login fails, redirect to login page
+        router.push("/login?registered=true")
+      }
     } catch (error) {
       toast.error("An unexpected error occurred. Please try again.")
       setIsLoading(false)
@@ -78,12 +118,7 @@ export default function RegisterPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 group">
-            <div className="w-10 h-10 bg-gradient-to-br from-[oklch(0.75_0.15_85)] to-[oklch(0.65_0.15_220)] rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-              <Sparkles className="w-6 h-6 text-background" />
-            </div>
-            <span className="text-2xl font-bold">Amisag</span>
-          </Link>
+          <Logo size="lg" href="/" />
           <p className="text-muted-foreground mt-2">Networking made fun</p>
         </div>
 
