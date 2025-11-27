@@ -15,13 +15,18 @@ const emailConfig = process.env.RESEND_API_KEY
 	: undefined;
 
 // Get base URL - prioritize environment variable, fallback to localhost
+// IMPORTANT: In development, this should match the port you're actually using
 const getBaseURL = () => {
+	// If explicitly set, use it
 	if (process.env.NEXT_PUBLIC_SITE_URL) {
 		return process.env.NEXT_PUBLIC_SITE_URL
 	}
-	// In development, use localhost:3001 (or 3000 if that's what the dev server uses)
+	// In development, default to port 3000 (Next.js default)
+	// If you're using port 3001, set NEXT_PUBLIC_SITE_URL=http://localhost:3001 in .env.local
 	if (process.env.NODE_ENV === "development") {
-		return process.env.PORT === "3001" ? "http://localhost:3001" : "http://localhost:3000"
+		// Check if PORT env var is set (from npm run dev:3001)
+		const port = process.env.PORT || "3000"
+		return `http://localhost:${port}`
 	}
 	// Fallback for production if NEXT_PUBLIC_SITE_URL is not set
 	return "http://localhost:3000"
@@ -29,6 +34,8 @@ const getBaseURL = () => {
 
 const baseURL = getBaseURL()
 console.log("🔐 Auth baseURL configured as:", baseURL)
+console.log("🔐 NODE_ENV:", process.env.NODE_ENV)
+console.log("🔐 NEXT_PUBLIC_SITE_URL:", process.env.NEXT_PUBLIC_SITE_URL)
 
 export const auth = betterAuth({
 	baseURL: baseURL,

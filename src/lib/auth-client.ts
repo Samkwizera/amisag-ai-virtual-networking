@@ -10,17 +10,18 @@ const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
 // Get base URL for auth client
 const getAuthClientBaseURL = () => {
   if (typeof window !== 'undefined') {
-    // Client-side: use current origin
-    return window.location.origin;
+    // Client-side: use current origin (this ensures it always matches)
+    const origin = window.location.origin;
+    console.log('🔐 Auth client using origin:', origin);
+    return origin;
   }
   // Server-side: use environment variable or fallback
-  return process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  const baseURL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  console.log('🔐 Auth client baseURL (server-side):', baseURL);
+  return baseURL;
 };
 
 const authBaseURL = getAuthClientBaseURL();
-if (typeof window !== 'undefined') {
-  console.log('🔐 Auth client baseURL:', authBaseURL);
-}
 
 export const authClient = createAuthClient({
    baseURL: authBaseURL,
