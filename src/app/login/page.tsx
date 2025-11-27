@@ -2,6 +2,9 @@
 
 import { useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+
+// Mark page as dynamic to avoid static generation issues with useSearchParams
+export const dynamic = 'force-dynamic'
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
