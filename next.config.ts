@@ -18,6 +18,16 @@ const nextConfig: NextConfig = {
   },
   // Remove outputFileTracingRoot - it causes issues on Vercel
   // outputFileTracingRoot: path.resolve(__dirname, '../../'),
+  // Disable output file tracing to avoid routes-manifest.json errors on Vercel
+  experimental: {
+    outputFileTracingExcludes: {
+      '*': [
+        'node_modules/@swc/core-linux-x64-gnu',
+        'node_modules/@swc/core-linux-x64-musl',
+        'node_modules/@esbuild/linux-x64',
+      ],
+    },
+  },
   typescript: {
     ignoreBuildErrors: true,
   },
