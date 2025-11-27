@@ -12,12 +12,27 @@ export async function GET() {
   // Test 1: Database connection
   try {
     console.log("🧪 Test 1: Database connection...");
+    console.log("🧪 Database URL:", process.env.TURSO_CONNECTION_URL || "file:./local.db");
+    console.log("🧪 Has auth token:", !!process.env.TURSO_AUTH_TOKEN);
+    
     await db.select().from(user).limit(1);
     results.tests.push({ name: "Database connection", status: "✅ PASS" });
   } catch (error: any) {
-    results.tests.push({ name: "Database connection", status: "❌ FAIL", error: error.message });
+    const errorDetails = {
+      message: error.message,
+      name: error.name,
+      stack: error.stack,
+      code: error.code,
+    };
+    results.tests.push({ 
+      name: "Database connection", 
+      status: "❌ FAIL", 
+      error: error.message,
+      details: errorDetails
+    });
     results.errors.push(`Database connection failed: ${error.message}`);
     console.error("❌ Database connection test failed:", error);
+    console.error("❌ Error details:", JSON.stringify(errorDetails, null, 2));
   }
 
   // Test 2: User table exists
