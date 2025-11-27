@@ -11,39 +11,55 @@ async function initDatabase() {
       url: `file:${dbPath}`,
     });
 
-    // Read migration file
-    const migrationFile = path.join(process.cwd(), 'drizzle', '0000_cynical_mephisto.sql');
+    // Read all migration files in order
+    const migrationFiles = [
+      '0000_cynical_mephisto.sql',
+      '0001_low_thunderball.sql',
+      '0002_thankful_goblin_queen.sql'
+    ];
     
-    if (!fs.existsSync(migrationFile)) {
-      console.error('❌ Migration file not found:', migrationFile);
-      process.exit(1);
+    let allStatements = [];
+    
+    for (const migrationFile of migrationFiles) {
+      const filePath = path.join(process.cwd(), 'drizzle', migrationFile);
+      
+      if (!fs.existsSync(filePath)) {
+        console.log(`⚠️ Migration file not found: ${migrationFile}, skipping...`);
+        continue;
+      }
+      
+      console.log(`📝 Reading migration: ${migrationFile}`);
+      const sqlContent = fs.readFileSync(filePath, 'utf-8');
+      
+      // Split by statement-breakpoint and execute each statement
+      const statements = sqlContent
+        .split('--> statement-breakpoint')
+        .map(s => s.trim())
+        .filter(s => s.length > 0 && !s.startsWith('--'))
+        .map(s => s.replace(/;\s*$/, ''))
+        .filter(s => s.length > 0);
+      
+      allStatements = allStatements.concat(statements);
     }
 
-    const sqlContent = fs.readFileSync(migrationFile, 'utf-8');
-    
-    // Split by statement-breakpoint and execute each statement
-    const statements = sqlContent
-      .split('--> statement-breakpoint')
-      .map(s => s.trim())
-      .filter(s => s.length > 0 && !s.startsWith('--'))
-      .map(s => s.replace(/;\s*$/, ''))
-      .filter(s => s.length > 0);
+    console.log(`📝 Found ${allStatements.length} total SQL statements to execute`);
 
-    console.log(`📝 Found ${statements.length} SQL statements to execute`);
-
-    for (let i = 0; i < statements.length; i++) {
-      const statement = statements[i];
+    for (let i = 0; i < allStatements.length; i++) {
+      const statement = allStatements[i];
       if (statement.trim()) {
         try {
-          console.log(`  Executing statement ${i + 1}/${statements.length}...`);
+          console.log(`  Executing statement ${i + 1}/${allStatements.length}...`);
           await client.execute(statement);
         } catch (error) {
-          // Ignore "table already exists" errors
-          if (!error.message.includes('already exists')) {
+          // Ignore "table already exists" and "duplicate column" errors
+          if (!error.message.includes('already exists') && 
+              !error.message.includes('duplicate column') &&
+              !error.message.includes('UNIQUE constraint failed')) {
             console.error(`❌ Error executing statement ${i + 1}:`, error.message);
-            throw error;
+            console.error(`   Statement: ${statement.substring(0, 100)}...`);
+            // Don't throw - continue with other statements
           } else {
-            console.log(`  ⚠️ Table already exists, skipping...`);
+            console.log(`  ⚠️ Already exists, skipping...`);
           }
         }
       }
