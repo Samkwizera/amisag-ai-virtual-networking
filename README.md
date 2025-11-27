@@ -2,6 +2,10 @@
 
 A modern, AI-powered virtual networking platform built with Next.js, designed to connect professionals across Africa and beyond.
 
+## 🎥 Demo
+
+Watch the platform in action: [YouTube Demo](https://youtu.be/P6iUdXh7Sp4)
+
 ## 📋 Prerequisites
 
 - **Node.js** v18+ - [Download](https://nodejs.org/)
