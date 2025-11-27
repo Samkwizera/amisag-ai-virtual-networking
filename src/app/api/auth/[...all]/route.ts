@@ -2,7 +2,15 @@ import { auth } from "@/lib/auth";
 import { toNextJsHandler } from "better-auth/next-js";
 import { NextRequest, NextResponse } from "next/server";
 
-const handler = toNextJsHandler(auth);
+let handler: ReturnType<typeof toNextJsHandler>;
+try {
+  handler = toNextJsHandler(auth);
+  console.log("✅ Better-auth handler initialized successfully");
+} catch (initError: any) {
+  console.error("❌ Failed to initialize better-auth handler:", initError);
+  console.error("❌ Init error details:", initError?.message, initError?.stack);
+  throw initError;
+}
 
 // Wrap handlers with error logging and better error handling
 export async function POST(request: NextRequest) {
@@ -23,7 +31,16 @@ export async function POST(request: NextRequest) {
       // Body might not be JSON or already consumed
     }
     
-    const response = await handler.POST(request);
+    let response: Response;
+    try {
+      response = await handler.POST(request);
+    } catch (handlerError: any) {
+      console.error("❌ Handler.POST threw an error:", handlerError);
+      console.error("❌ Handler error message:", handlerError?.message);
+      console.error("❌ Handler error stack:", handlerError?.stack);
+      throw handlerError; // Re-throw to be caught by outer catch
+    }
+    
     const status = response.status;
     console.log("🔐 Auth POST response status:", status);
     
@@ -45,15 +62,8 @@ export async function POST(request: NextRequest) {
         console.error("❌ Could not read error response:", err);
       }
       
-      // Return a more helpful error message
-      return NextResponse.json(
-        {
-          error: "Internal server error",
-          message: "Authentication service encountered an error. Please check server logs.",
-          code: "INTERNAL_ERROR",
-        },
-        { status: 500 }
-      );
+      // Return the original error response from better-auth
+      return response;
     }
     
     return response;
