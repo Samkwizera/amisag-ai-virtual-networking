@@ -231,7 +231,7 @@ export function LandingPage() {
                   className="bg-[oklch(0.75_0.15_85)] text-[oklch(0.12_0_0)] hover:bg-[oklch(0.7_0.15_85)] text-lg px-8 h-14 rounded-full button-glow-custom transition-all duration-300 hover:scale-105"
                   asChild
                 >
-                  <Link href="/connect">
+                  <Link href={session?.user ? "/connect" : "/register"}>
                     Start Connecting <ChevronRight className="ml-2 w-5 h-5" />
                   </Link>
                 </Button>

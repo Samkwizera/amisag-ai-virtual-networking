@@ -69,7 +69,10 @@ export default function RegisterPage() {
         console.error("Error details:", JSON.stringify(error, null, 2))
         
         let errorMessage = getErrorMessage(error.code || "")
-        if (error.message && !error.code) {
+        if (error.code === "INVALID_ORIGIN") {
+          errorMessage = "Configuration error. Please check server configuration."
+          console.error("⚠️ INVALID_ORIGIN error - Check baseURL configuration. Visit /api/auth/diagnose for details.")
+        } else if (error.message && !error.code) {
           errorMessage = error.message
         }
         

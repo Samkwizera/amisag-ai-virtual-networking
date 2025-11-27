@@ -64,6 +64,9 @@ function LoginForm() {
           errorMessage = "Invalid email or password. Please check your credentials and try again."
         } else if (error.code === "USER_NOT_FOUND") {
           errorMessage = "No account found with this email. Please register first."
+        } else if (error.code === "INVALID_ORIGIN") {
+          errorMessage = "Configuration error. Please check server configuration."
+          console.error("⚠️ INVALID_ORIGIN error - Check baseURL configuration. Visit /api/auth/diagnose for details.")
         } else if (error.message) {
           errorMessage = error.message
         }

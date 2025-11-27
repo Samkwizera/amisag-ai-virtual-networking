@@ -148,136 +148,111 @@ nextjs-portal {
 
 /* Button glow effects */
 @layer utilities {
+  /* Optimized button animations - GPU accelerated, no expensive box-shadows */
   .button-glow-primary {
-    transition: all 0.3s ease;
+    transition: transform 0.15s ease, opacity 0.15s ease;
     position: relative;
+    will-change: transform;
+    backface-visibility: hidden;
+    transform: translateZ(0);
   }
   
   .button-glow-primary:hover {
-    box-shadow: 
-      0 0 30px -5px hsl(var(--primary) / 0.9),
-      0 0 60px -10px hsl(var(--primary) / 0.7),
-      0 0 90px -15px hsl(var(--primary) / 0.5),
-      0 0 120px -20px hsl(var(--primary) / 0.3),
-      inset 0 0 30px hsl(var(--primary) / 0.2);
-    transform: translateY(-2px);
-    filter: brightness(1.15);
-    animation: glow-pulse 2s ease-in-out infinite;
+    transform: translateY(-1px) translateZ(0);
+    opacity: 0.9;
   }
   
-  @keyframes glow-pulse {
-    0%, 100% {
-      box-shadow: 
-        0 0 30px -5px hsl(var(--primary) / 0.9),
-        0 0 60px -10px hsl(var(--primary) / 0.7),
-        0 0 90px -15px hsl(var(--primary) / 0.5),
-        0 0 120px -20px hsl(var(--primary) / 0.3),
-        inset 0 0 30px hsl(var(--primary) / 0.2);
-    }
-    50% {
-      box-shadow: 
-        0 0 40px -5px hsl(var(--primary) / 1),
-        0 0 80px -10px hsl(var(--primary) / 0.8),
-        0 0 120px -15px hsl(var(--primary) / 0.6),
-        0 0 160px -20px hsl(var(--primary) / 0.4),
-        inset 0 0 40px hsl(var(--primary) / 0.3);
-    }
+  .button-glow-primary:active {
+    transform: translateY(0) translateZ(0);
   }
   
-  /* Navigation link glow effect */
+  /* Navigation link glow effect - simplified */
   nav a.group:hover {
-    text-shadow: 
-      0 0 10px hsl(var(--primary) / 0.5),
-      0 0 20px hsl(var(--primary) / 0.3),
-      0 0 30px hsl(var(--primary) / 0.2);
+    text-shadow: 0 0 8px hsl(var(--primary) / 0.4);
   }
   
   .button-glow-destructive {
-    transition: all 0.3s ease;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+    will-change: transform;
+    backface-visibility: hidden;
+    transform: translateZ(0);
   }
   
   .button-glow-destructive:hover {
-    box-shadow: 
-      0 0 35px -5px rgba(239, 68, 68, 0.9),
-      0 0 70px -10px rgba(239, 68, 68, 0.7),
-      0 0 105px -15px rgba(239, 68, 68, 0.5),
-      0 0 140px -20px rgba(239, 68, 68, 0.3);
-    transform: translateY(-2px);
-    filter: brightness(1.15);
+    transform: translateY(-1px) translateZ(0);
+    opacity: 0.9;
+  }
+  
+  .button-glow-destructive:active {
+    transform: translateY(0) translateZ(0);
   }
   
   .button-glow-outline {
-    transition: all 0.3s ease;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+    will-change: transform;
+    backface-visibility: hidden;
+    transform: translateZ(0);
   }
   
   .button-glow-outline:hover {
-    box-shadow: 
-      0 0 30px -3px rgba(255, 255, 255, 0.6),
-      0 0 60px -5px rgba(255, 255, 255, 0.5),
-      0 0 90px -8px rgba(255, 255, 255, 0.4),
-      0 0 120px -10px rgba(255, 255, 255, 0.3);
-    transform: translateY(-2px);
+    transform: translateY(-1px) translateZ(0);
     border-color: rgba(255, 255, 255, 0.5);
   }
   
+  .button-glow-outline:active {
+    transform: translateY(0) translateZ(0);
+  }
+  
   .dark .button-glow-outline:hover {
-    box-shadow: 
-      0 0 30px -3px rgba(255, 255, 255, 0.7),
-      0 0 60px -5px rgba(255, 255, 255, 0.6),
-      0 0 90px -8px rgba(255, 255, 255, 0.5),
-      0 0 120px -10px rgba(255, 255, 255, 0.4);
     border-color: rgba(255, 255, 255, 0.6);
   }
   
   .button-glow-secondary {
-    transition: all 0.3s ease;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+    will-change: transform;
+    backface-visibility: hidden;
+    transform: translateZ(0);
   }
   
   .button-glow-secondary:hover {
-    box-shadow: 
-      0 0 30px -3px hsl(var(--secondary) / 0.8),
-      0 0 60px -5px hsl(var(--secondary) / 0.6),
-      0 0 90px -8px hsl(var(--secondary) / 0.4),
-      0 0 120px -10px hsl(var(--secondary) / 0.3);
-    transform: translateY(-2px);
-    filter: brightness(1.15);
+    transform: translateY(-1px) translateZ(0);
+    opacity: 0.9;
+  }
+  
+  .button-glow-secondary:active {
+    transform: translateY(0) translateZ(0);
   }
   
   .button-glow-ghost {
-    transition: all 0.3s ease;
+    transition: transform 0.15s ease, background-color 0.15s ease;
+    will-change: transform;
+    backface-visibility: hidden;
+    transform: translateZ(0);
   }
   
   .button-glow-ghost:hover {
-    box-shadow: 
-      0 0 25px -2px rgba(255, 255, 255, 0.4),
-      0 0 50px -4px rgba(255, 255, 255, 0.3),
-      0 0 75px -6px rgba(255, 255, 255, 0.2),
-      0 0 100px -8px rgba(255, 255, 255, 0.1);
-    transform: translateY(-2px);
+    transform: translateY(-1px) translateZ(0);
   }
   
-  .dark .button-glow-ghost:hover {
-    box-shadow: 
-      0 0 25px -2px rgba(255, 255, 255, 0.5),
-      0 0 50px -4px rgba(255, 255, 255, 0.4),
-      0 0 75px -6px rgba(255, 255, 255, 0.3),
-      0 0 100px -8px rgba(255, 255, 255, 0.2);
+  .button-glow-ghost:active {
+    transform: translateY(0) translateZ(0);
   }
 
   /* Enhanced glow for custom colored buttons */
   .button-glow-custom {
-    transition: all 0.3s ease;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+    will-change: transform;
+    backface-visibility: hidden;
+    transform: translateZ(0);
   }
   
   .button-glow-custom:hover {
-    box-shadow: 
-      0 0 35px -5px oklch(0.75 0.15 85 / 0.9),
-      0 0 70px -10px oklch(0.75 0.15 85 / 0.7),
-      0 0 105px -15px oklch(0.75 0.15 85 / 0.5),
-      0 0 140px -20px oklch(0.75 0.15 85 / 0.3),
-      inset 0 0 40px oklch(0.75 0.15 85 / 0.2);
-    transform: translateY(-2px);
-    filter: brightness(1.15);
+    transform: translateY(-1px) translateZ(0);
+    opacity: 0.9;
+  }
+  
+  .button-glow-custom:active {
+    transform: translateY(0) translateZ(0);
   }
   
   /* Background Ripple Effect Animations */

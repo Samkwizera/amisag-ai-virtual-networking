@@ -14,13 +14,21 @@ const emailConfig = process.env.RESEND_API_KEY
 		}
 	: undefined;
 
-// Get base URL - prioritize environment variable, fallback to localhost
+// Get base URL - prioritize environment variable, fallback to Vercel URL or localhost
 // IMPORTANT: In development, this should match the port you're actually using
 const getBaseURL = () => {
-	// If explicitly set, use it
+	// If explicitly set, use it (highest priority)
 	if (process.env.NEXT_PUBLIC_SITE_URL) {
 		return process.env.NEXT_PUBLIC_SITE_URL
 	}
+	
+	// In Vercel, use VERCEL_URL (automatically provided by Vercel)
+	// VERCEL_URL is like "your-app.vercel.app" (without protocol)
+	// Vercel always uses HTTPS
+	if (process.env.VERCEL_URL) {
+		return `https://${process.env.VERCEL_URL}`
+	}
+	
 	// In development, default to port 3000 (Next.js default)
 	// If you're using port 3001, set NEXT_PUBLIC_SITE_URL=http://localhost:3001 in .env.local
 	if (process.env.NODE_ENV === "development") {
@@ -28,15 +36,20 @@ const getBaseURL = () => {
 		const port = process.env.PORT || "3000"
 		return `http://localhost:${port}`
 	}
-	// Fallback for production if NEXT_PUBLIC_SITE_URL is not set
+	
+	// Last resort fallback - should not happen in production
+	console.warn("⚠️ WARNING: No baseURL configured! Set NEXT_PUBLIC_SITE_URL or deploy on Vercel.")
 	return "http://localhost:3000"
 }
 
 const baseURL = getBaseURL()
 console.log("🔐 Auth baseURL configured as:", baseURL)
 console.log("🔐 NODE_ENV:", process.env.NODE_ENV)
-console.log("🔐 NEXT_PUBLIC_SITE_URL:", process.env.NEXT_PUBLIC_SITE_URL)
+console.log("🔐 NEXT_PUBLIC_SITE_URL:", process.env.NEXT_PUBLIC_SITE_URL || "Not set")
+console.log("🔐 VERCEL_URL:", process.env.VERCEL_URL || "Not set (not on Vercel)")
+console.log("🔐 VERCEL_ENV:", process.env.VERCEL_ENV || "Not set")
 console.log("🔐 Database URL:", process.env.TURSO_CONNECTION_URL ? "Set (Turso)" : "Not set (using local.db)")
+console.log("🔐 BETTER_AUTH_SECRET:", process.env.BETTER_AUTH_SECRET ? "Set" : "⚠️ NOT SET - Using default!")
 
 // Better-auth requires a secret for session encryption
 // Generate a secure random secret if not provided
