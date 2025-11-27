@@ -36,6 +36,7 @@ const baseURL = getBaseURL()
 console.log("🔐 Auth baseURL configured as:", baseURL)
 console.log("🔐 NODE_ENV:", process.env.NODE_ENV)
 console.log("🔐 NEXT_PUBLIC_SITE_URL:", process.env.NEXT_PUBLIC_SITE_URL)
+console.log("🔐 Database URL:", process.env.TURSO_CONNECTION_URL ? "Set (Turso)" : "Not set (using local.db)")
 
 export const auth = betterAuth({
 	baseURL: baseURL,
