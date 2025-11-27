@@ -38,8 +38,17 @@ console.log("🔐 NODE_ENV:", process.env.NODE_ENV)
 console.log("🔐 NEXT_PUBLIC_SITE_URL:", process.env.NEXT_PUBLIC_SITE_URL)
 console.log("🔐 Database URL:", process.env.TURSO_CONNECTION_URL ? "Set (Turso)" : "Not set (using local.db)")
 
+// Better-auth requires a secret for session encryption
+// Generate a secure random secret if not provided
+const authSecret = process.env.BETTER_AUTH_SECRET || process.env.AUTH_SECRET || "dev-secret-change-in-production-min-32-chars";
+
+if (!process.env.BETTER_AUTH_SECRET && !process.env.AUTH_SECRET) {
+	console.warn("⚠️ WARNING: Using default secret. Set BETTER_AUTH_SECRET in .env.local for production!");
+}
+
 export const auth = betterAuth({
 	baseURL: baseURL,
+	secret: authSecret,
 	database: drizzleAdapter(db, {
 		provider: "sqlite",
 	}),
