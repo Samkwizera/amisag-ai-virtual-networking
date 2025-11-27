@@ -7,8 +7,23 @@ let sessionCache: any = null
 let sessionCacheTime: number = 0
 const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
 
+// Get base URL for auth client
+const getAuthClientBaseURL = () => {
+  if (typeof window !== 'undefined') {
+    // Client-side: use current origin
+    return window.location.origin;
+  }
+  // Server-side: use environment variable or fallback
+  return process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+};
+
+const authBaseURL = getAuthClientBaseURL();
+if (typeof window !== 'undefined') {
+  console.log('🔐 Auth client baseURL:', authBaseURL);
+}
+
 export const authClient = createAuthClient({
-   baseURL: typeof window !== 'undefined' ? window.location.origin : process.env.NEXT_PUBLIC_SITE_URL,
+   baseURL: authBaseURL,
   fetchOptions: {
       headers: {
         Authorization: `Bearer ${typeof window !== 'undefined' ? localStorage.getItem("bearer_token") || "" : ""}`,

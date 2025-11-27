@@ -14,8 +14,24 @@ const emailConfig = process.env.RESEND_API_KEY
 		}
 	: undefined;
 
+// Get base URL - prioritize environment variable, fallback to localhost
+const getBaseURL = () => {
+	if (process.env.NEXT_PUBLIC_SITE_URL) {
+		return process.env.NEXT_PUBLIC_SITE_URL
+	}
+	// In development, use localhost:3001 (or 3000 if that's what the dev server uses)
+	if (process.env.NODE_ENV === "development") {
+		return process.env.PORT === "3001" ? "http://localhost:3001" : "http://localhost:3000"
+	}
+	// Fallback for production if NEXT_PUBLIC_SITE_URL is not set
+	return "http://localhost:3000"
+}
+
+const baseURL = getBaseURL()
+console.log("🔐 Auth baseURL configured as:", baseURL)
+
 export const auth = betterAuth({
-	baseURL: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3001",
+	baseURL: baseURL,
 	database: drizzleAdapter(db, {
 		provider: "sqlite",
 	}),

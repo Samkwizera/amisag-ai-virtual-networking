@@ -54,14 +54,33 @@ export default function RegisterPage() {
     setIsLoading(true)
 
     try {
+      console.log("📝 Starting registration for:", formData.email)
+      
       const { data, error } = await authClient.signUp.email({
         email: formData.email,
         name: formData.name,
         password: formData.password
       })
 
-      if (error?.code) {
-        toast.error(getErrorMessage(error.code))
+      console.log("📝 Registration response:", { data, error })
+
+      if (error) {
+        console.error("❌ Registration error:", error)
+        console.error("Error details:", JSON.stringify(error, null, 2))
+        
+        let errorMessage = getErrorMessage(error.code || "")
+        if (error.message && !error.code) {
+          errorMessage = error.message
+        }
+        
+        toast.error(errorMessage)
+        setIsLoading(false)
+        return
+      }
+
+      if (!data) {
+        console.error("❌ No data returned from registration")
+        toast.error("Registration failed. Please try again.")
         setIsLoading(false)
         return
       }
@@ -117,8 +136,18 @@ export default function RegisterPage() {
         // If auto-login fails, redirect to login page
         router.push("/login?registered=true")
       }
-    } catch (error) {
-      toast.error("An unexpected error occurred. Please try again.")
+    } catch (error: any) {
+      console.error("❌ Registration exception:", error)
+      console.error("Error stack:", error?.stack)
+      console.error("Error details:", JSON.stringify(error, null, 2))
+      
+      // Check if it's a network error
+      if (error?.message?.includes("fetch") || error?.message?.includes("network") || error?.message?.includes("Failed to fetch")) {
+        toast.error("Network error. Please check your internet connection and try again.")
+      } else {
+        const errorMessage = error?.message || error?.toString() || "An unexpected error occurred. Please try again."
+        toast.error(errorMessage)
+      }
       setIsLoading(false)
     }
   }

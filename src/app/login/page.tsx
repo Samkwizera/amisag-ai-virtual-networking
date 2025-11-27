@@ -54,9 +54,28 @@ function LoginForm() {
 
       const { data, error } = response
 
-      if (error?.code) {
+      if (error) {
         console.error("❌ Sign-in error:", error)
-        toast.error("Invalid email or password. Please make sure you have already registered an account and try again.")
+        console.error("Error details:", JSON.stringify(error, null, 2))
+        
+        // Provide more specific error messages
+        let errorMessage = "Invalid email or password. Please try again."
+        if (error.code === "INVALID_EMAIL_OR_PASSWORD" || error.code === "INVALID_CREDENTIALS") {
+          errorMessage = "Invalid email or password. Please check your credentials and try again."
+        } else if (error.code === "USER_NOT_FOUND") {
+          errorMessage = "No account found with this email. Please register first."
+        } else if (error.message) {
+          errorMessage = error.message
+        }
+        
+        toast.error(errorMessage)
+        setIsLoading(false)
+        return
+      }
+
+      if (!data) {
+        console.error("❌ No data returned from sign-in")
+        toast.error("Sign-in failed. Please try again.")
         setIsLoading(false)
         return
       }
@@ -109,8 +128,16 @@ function LoginForm() {
     } catch (error: any) {
       const errorTime = Date.now()
       console.error(`❌ Sign-in error after ${errorTime - startTime}ms:`, error)
-      const errorMessage = error?.message || "An unexpected error occurred. Please try again."
-      toast.error(errorMessage)
+      console.error("Error stack:", error?.stack)
+      console.error("Error details:", JSON.stringify(error, null, 2))
+      
+      // Check if it's a network error
+      if (error?.message?.includes("fetch") || error?.message?.includes("network") || error?.message?.includes("Failed to fetch")) {
+        toast.error("Network error. Please check your internet connection and try again.")
+      } else {
+        const errorMessage = error?.message || error?.toString() || "An unexpected error occurred. Please try again."
+        toast.error(errorMessage)
+      }
       setIsLoading(false)
     }
   }
